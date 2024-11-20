@@ -2,7 +2,7 @@
  * @param {number[]} nums
  * @return {number}
  */
-var minElement = function(nums) {
+ var minElement = function(nums) {
     let nn=nums.map((val)=>{
         let sum=0;
          let s=val.toString().split("");
