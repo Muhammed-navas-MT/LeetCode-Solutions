@@ -10,6 +10,7 @@ var detectCapitalUse = function(word) {
             return true
         }
         let wrd= word.slice(1)
+        console.log(wrd)
         if(wrd ==wrd.toLowerCase()){
             return true
         }
