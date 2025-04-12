@@ -15,6 +15,7 @@ var canAliceWin = function(nums) {
     let d =double.reduce((acc,val)=>{
         return acc+val
     },0);
+    console.log(s,d)
     if(s>d || d>s){
         return true;
     }else{
