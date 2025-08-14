@@ -28,7 +28,6 @@ var largestGoodInteger = function(num) {
     if(result.length === 0){
         return ""
     }
-    console.log(result);
     let max = Math.max(...result);
     if(max === 0){
         return "000"
