@@ -3,7 +3,6 @@
  * @return {number}
  */
 var deleteGreatestValue = function(grid) {
-    // Sort each row in ascending order
     grid.forEach(row => row.sort((a, b) => a - b));
     
     let sum = 0;
@@ -12,7 +11,7 @@ var deleteGreatestValue = function(grid) {
         let maxInColumn = 0;
         
         for (let row of grid) {
-            maxInColumn = Math.max(maxInColumn, row.pop()); // Remove and get the last element
+            maxInColumn = Math.max(maxInColumn, row.pop());
         }
         
         sum += maxInColumn;
