@@ -9,7 +9,7 @@ var removeTrailingZeros = function(num) {
             arr.shift();
             i--;
         }else{
-            return arr.reverse().join("").trim();
+            return arr.reverse().join("");
         }
     };
 
