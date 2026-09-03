@@ -1,7 +1,13 @@
 name: LeetCode Sync
 
 on:
+  # Allows you to run it manually from GitHub Actions
   workflow_dispatch:
+
+  # Runs every day at 10:00 PM IST
+  # 10:00 PM IST = 4:30 PM UTC
+  schedule:
+    - cron: "30 16 * * *"
 
 permissions:
   contents: write
@@ -11,11 +17,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Sync LeetCode solutions
-        uses: joshcai/leetcode-sync@v1.7
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          github-token: ${{ github.token }}
-          leetcode-session: ${{ secrets.LEETCODE_SESSION }}
-          leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
-          destination-folder: solutions
-          commit-header: "[LeetCode]"
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Sync LeetCode
+        env:
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+        run: python .github/scripts/leetcode_sync.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add solutions
+
+          if git diff --cached --quiet; then
+            echo "No new LeetCode solutions found."
+          else
+            git commit -m "[LeetCode] Sync accepted solutions"
+            git push
+          fi
