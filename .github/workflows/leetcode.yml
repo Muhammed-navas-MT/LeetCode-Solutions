@@ -1,13 +1,7 @@
 name: LeetCode Sync
 
 on:
-  # Allows you to run it manually from GitHub Actions
   workflow_dispatch:
-
-  # Runs every day at 10:00 PM IST
-  # 10:00 PM IST = 4:30 PM UTC
-  schedule:
-    - cron: "30 16 * * *"
 
 permissions:
   contents: write
