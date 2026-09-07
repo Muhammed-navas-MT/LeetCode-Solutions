@@ -48,12 +48,20 @@ def fail(message):
     sys.exit(1)
 
 
+# ---------------------------------------------------------
+# Environment validation
+# ---------------------------------------------------------
+
 if not SESSION_TOKEN:
     fail("LEETCODE_SESSION secret is missing.")
 
 if not CSRF_TOKEN:
     fail("LEETCODE_CSRF_TOKEN secret is missing.")
 
+
+# ---------------------------------------------------------
+# LeetCode session
+# ---------------------------------------------------------
 
 session = requests.Session()
 
@@ -86,6 +94,10 @@ session.headers.update(
 )
 
 
+# ---------------------------------------------------------
+# GraphQL helper
+# ---------------------------------------------------------
+
 def graphql(query, variables=None):
     try:
         response = session.post(
@@ -96,6 +108,7 @@ def graphql(query, variables=None):
             },
             timeout=30,
         )
+
     except requests.RequestException as exc:
         fail(f"Could not connect to LeetCode: {exc}")
 
@@ -107,6 +120,7 @@ def graphql(query, variables=None):
 
     try:
         data = response.json()
+
     except ValueError:
         fail("LeetCode returned invalid JSON.")
 
@@ -116,14 +130,23 @@ def graphql(query, variables=None):
 
         for error in errors:
             if isinstance(error, dict):
-                messages.append(str(error.get("message", error)))
+                messages.append(
+                    str(error.get("message", error))
+                )
             else:
                 messages.append(str(error))
 
-        fail("LeetCode GraphQL error: " + " | ".join(messages))
+        fail(
+            "LeetCode GraphQL error: "
+            + " | ".join(messages)
+        )
 
     return data.get("data", {})
 
+
+# ---------------------------------------------------------
+# Get authenticated user
+# ---------------------------------------------------------
 
 def get_user():
     query = """
@@ -136,6 +159,7 @@ def get_user():
     """
 
     data = graphql(query)
+
     user_status = data.get("userStatus")
 
     if not user_status:
@@ -154,6 +178,10 @@ def get_user():
 
     return username
 
+
+# ---------------------------------------------------------
+# Get recent accepted submissions
+# ---------------------------------------------------------
 
 def get_recent_accepted_submissions(username):
     query = """
@@ -184,17 +212,26 @@ def get_recent_accepted_submissions(username):
         return []
 
     if not isinstance(submissions, list):
-        fail("Unexpected response from recentAcSubmissionList.")
+        fail(
+            "Unexpected response from "
+            "recentAcSubmissionList."
+        )
 
     return submissions
 
+
+# ---------------------------------------------------------
+# Get submission details
+# ---------------------------------------------------------
 
 def get_submission_details(submission_id):
     query = """
     query submissionDetails($submissionId: Int!) {
         submissionDetails(submissionId: $submissionId) {
             code
-            lang
+            lang {
+                name
+            }
             runtime
             memory
             statusDisplay
@@ -219,12 +256,24 @@ def get_submission_details(submission_id):
     return data.get("submissionDetails")
 
 
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
 def sanitize_filename(value):
     value = value.lower().strip()
 
-    value = re.sub(r"[^a-z0-9]+", "-", value)
+    value = re.sub(
+        r"[^a-z0-9]+",
+        "-",
+        value,
+    )
 
-    value = re.sub(r"-+", "-", value)
+    value = re.sub(
+        r"-+",
+        "-",
+        value,
+    )
 
     return value.strip("-")
 
@@ -232,7 +281,10 @@ def sanitize_filename(value):
 def get_extension(language):
     normalized = language.lower().strip()
 
-    return LANGUAGE_EXTENSIONS.get(normalized, "txt")
+    return LANGUAGE_EXTENSIONS.get(
+        normalized,
+        "txt",
+    )
 
 
 def format_timestamp(timestamp):
@@ -244,41 +296,63 @@ def format_timestamp(timestamp):
             tz=timezone.utc,
         )
 
-        return date.strftime("%Y-%m-%d %H:%M:%S UTC")
+        return date.strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
 
     except (TypeError, ValueError):
         return str(timestamp)
 
 
 def solution_directory(question):
-    question_id = question.get("questionFrontendId")
-    title_slug = question.get("titleSlug")
+    question_id = question.get(
+        "questionFrontendId"
+    )
 
-    safe_slug = sanitize_filename(title_slug or "unknown-problem")
+    title_slug = question.get(
+        "titleSlug"
+    )
+
+    safe_slug = sanitize_filename(
+        title_slug or "unknown-problem"
+    )
 
     if question_id:
-        return SOLUTIONS_DIR / f"{question_id}-{safe_slug}"
+        return (
+            SOLUTIONS_DIR
+            / f"{question_id}-{safe_slug}"
+        )
 
     return SOLUTIONS_DIR / safe_slug
 
+
+# ---------------------------------------------------------
+# Write solution
+# ---------------------------------------------------------
 
 def write_solution(submission):
     submission_id = submission.get("id")
 
     if not submission_id:
-        print("Skipping submission without ID.")
-        return False
-
-    details = get_submission_details(submission_id)
-
-    if not details:
         print(
-            f"Could not get details for submission {submission_id}. "
-            "Skipping."
+            "Skipping submission without ID."
         )
         return False
 
-    status = details.get("statusDisplay")
+    details = get_submission_details(
+        submission_id
+    )
+
+    if not details:
+        print(
+            f"Could not get details for submission "
+            f"{submission_id}. Skipping."
+        )
+        return False
+
+    status = details.get(
+        "statusDisplay"
+    )
 
     if status != "Accepted":
         print(
@@ -296,9 +370,16 @@ def write_solution(submission):
         )
         return False
 
-    question = details.get("question") or {}
+    question = details.get(
+        "question"
+    ) or {}
 
-    title = question.get("title") or submission.get("title") or "Unknown Problem"
+    title = (
+        question.get("title")
+        or submission.get("title")
+        or "Unknown Problem"
+    )
+
     title_slug = (
         question.get("titleSlug")
         or submission.get("titleSlug")
@@ -306,33 +387,77 @@ def write_solution(submission):
     )
 
     question_id = (
-        question.get("questionFrontendId")
+        question.get(
+            "questionFrontendId"
+        )
         or "unknown"
     )
 
-    difficulty = question.get("difficulty") or "Unknown"
+    difficulty = (
+        question.get("difficulty")
+        or "Unknown"
+    )
 
-    language = details.get("lang") or "unknown"
+    # -----------------------------------------------------
+    # LeetCode now returns lang as:
+    #
+    # {
+    #     "name": "Python3"
+    # }
+    #
+    # instead of:
+    #
+    # "Python3"
+    # -----------------------------------------------------
 
-    extension = get_extension(language)
+    lang_data = details.get("lang") or {}
 
-    safe_slug = sanitize_filename(title_slug)
+    if isinstance(lang_data, dict):
+        language = (
+            lang_data.get("name")
+            or "unknown"
+        )
+    else:
+        language = str(lang_data)
+
+    extension = get_extension(
+        language
+    )
+
+    safe_slug = sanitize_filename(
+        title_slug
+    )
 
     if question_id != "unknown":
-        directory = SOLUTIONS_DIR / f"{question_id}-{safe_slug}"
+        directory = (
+            SOLUTIONS_DIR
+            / f"{question_id}-{safe_slug}"
+        )
     else:
-        directory = SOLUTIONS_DIR / safe_slug
+        directory = (
+            SOLUTIONS_DIR
+            / safe_slug
+        )
 
     directory.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    solution_file = directory / f"solution.{extension}"
+    solution_file = (
+        directory
+        / f"solution.{extension}"
+    )
 
-    readme_file = directory / "README.md"
+    readme_file = (
+        directory
+        / "README.md"
+    )
 
-    # Don't overwrite an existing solution.
+    # -----------------------------------------------------
+    # Don't overwrite existing solution
+    # -----------------------------------------------------
+
     if solution_file.exists():
         print(
             f"Already synced: {title} "
@@ -340,16 +465,36 @@ def write_solution(submission):
         )
         return False
 
+    # -----------------------------------------------------
+    # Write solution
+    # -----------------------------------------------------
+
     solution_file.write_text(
         code.rstrip() + "\n",
         encoding="utf-8",
     )
 
-    timestamp = details.get("timestamp") or submission.get("timestamp")
+    # -----------------------------------------------------
+    # Timestamp
+    # -----------------------------------------------------
+
+    timestamp = (
+        details.get("timestamp")
+        or submission.get("timestamp")
+    )
+
+    # -----------------------------------------------------
+    # LeetCode URL
+    # -----------------------------------------------------
 
     problem_url = (
-        f"https://leetcode.com/problems/{title_slug}/"
+        f"https://leetcode.com/problems/"
+        f"{title_slug}/"
     )
+
+    # -----------------------------------------------------
+    # README
+    # -----------------------------------------------------
 
     readme = f"""# {question_id}. {title}
 
@@ -369,37 +514,66 @@ The accepted solution is available in `solution.{extension}`.
         encoding="utf-8",
     )
 
-    print(f"Synced: {title}")
-    print(f"  Submission: {submission_id}")
-    print(f"  Language: {language}")
-    print(f"  File: {solution_file}")
+    print(
+        f"Synced: {title}"
+    )
+
+    print(
+        f"  Submission: {submission_id}"
+    )
+
+    print(
+        f"  Language: {language}"
+    )
+
+    print(
+        f"  File: {solution_file}"
+    )
 
     return True
 
 
+# ---------------------------------------------------------
+# Main
+# ---------------------------------------------------------
+
 def main():
-    print("Starting LeetCode sync...")
+    print(
+        "Starting LeetCode sync..."
+    )
 
     username = get_user()
 
-    print(f"Authenticated as: {username}")
+    print(
+        f"Authenticated as: {username}"
+    )
 
-    submissions = get_recent_accepted_submissions(username)
+    submissions = (
+        get_recent_accepted_submissions(
+            username
+        )
+    )
 
     if not submissions:
-        print("No recent accepted submissions found.")
+        print(
+            "No recent accepted submissions found."
+        )
         return
 
     print(
-        f"Found {len(submissions)} recent accepted submission(s)."
+        f"Found {len(submissions)} "
+        f"recent accepted submission(s)."
     )
 
     synced_count = 0
 
     for submission in submissions:
         try:
-            if write_solution(submission):
+            if write_solution(
+                submission
+            ):
                 synced_count += 1
+
         except Exception as exc:
             print(
                 f"Failed to process submission "
@@ -407,7 +581,10 @@ def main():
             )
 
     print()
-    print(f"Sync complete. New solutions: {synced_count}")
+    print(
+        f"Sync complete. "
+        f"New solutions: {synced_count}"
+    )
 
 
 if __name__ == "__main__":
